@@ -1,0 +1,14 @@
+x 2 getting started
+  3 Functional data structures
+  4 Handling Errors
+  5 Strictness and Laziness
+x 6 Purely Functional State
+  7 Purely Functional Parallelism
+  8 Property-based Testing
+  9 Parser Combinators
+ 10 Monoids
+ 11 Monads
+ 12 Applicative Functors
+ 13 Esternal Effects and I/O
+ 14 Local Effects & Mutable State
+ 15 Stream Processing
