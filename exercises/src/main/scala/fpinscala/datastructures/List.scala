@@ -164,37 +164,42 @@ object List { // `List` companion object. Contains functions for creating and wo
     }
 
   @tailrec
-  def listEq[A](sup: List[A], sub: List[A]): Boolean =
+  def startsWith[A](sup: List[A], sub: List[A]): Boolean =
     (sup, sub) match {
       case (Nil, Nil) => true
       case (Cons(_, _), Nil) => true
-      case (Nil, Cons(_, _)) => fals  e
-      case (Cons(h1, t1), Cons(h2, t2)) => if (h1 != h2) false else listEq(t1, t2)
+      case (Nil, Cons(_, _)) => false
+      case (Cons(h1, t1), Cons(h2, t2)) => if (h1 != h2) false else startsWith(t1, t2)
     }
 
-//  def hasSubsequence[A, B](sup: List[A], sub: List[B]): Boolean = {
-//    if (length(sup) < length(sub)) false
-//    else
-//      sup match {
-//        case Cons(h, t) =>
-//      }
-//  }
+  @tailrec
+  def hasSubsequence[A, B](sup: List[A], sub: List[B]): Boolean =
+    sup match {
+      case Nil => false
+      case Cons(_, t) => if (startsWith(sup, sub)) true else hasSubsequence(t, sub)
+    }
 
   def main(args: Array[String]): Unit = {
-    println(List(1, 2, 3))
-    println(reverse(List(1, 2, 3)))
-    println(append2(List(1, 2, 3), List(7, 8, 9)))
-    println(concat(List(List(1, 2, 3), List(4, 5, 6), List(7, 8, 9))))
-    println(add1(List(1, 2, 3)))
-    println(doubleToString(List(1, 2, 3)))
-    println(map(List(1, 2, 3))(_ * 3))
-    println(flatMap(List(1, 2, 3))(i => List(i, i)))
-    println(addInts(List(1, 2, 3), List(7, 8, 9)))
-    println(zipWith(List(1, 2, 3), List(7, 8, 9))((_, _)))
-    println(listEq(List(1, 2, 3), List(1, 2, 3)))
-    println(listEq(List(2, 3), List(1, 2, 3)))
-    println(listEq(List(1, 2), List(1, 2, 3)))
-    println(listEq(List(1, 2, 3), List(1, 2)))
-    println(listEq(List(1, 2, 3), List(1, 3, 3)))
+    println(hasSubsequence(List(1, 2, 3), List(1, 2, 3))) // true
+    println(hasSubsequence(List(1, 2, 3), List(1, 2))) // true
+    println(hasSubsequence(List(1, 2, 3), List(2, 3))) // true
+    println(hasSubsequence(Nil, Nil)) // false
+    println(hasSubsequence(List(1, 2, 3), Nil)) // false
+    println(hasSubsequence(List(1, 2), List(1, 2, 3))) // false
+    println(hasSubsequence(List(1, 2, 3), List(1, 3, 3))) // false
+    println(hasSubsequence(List(1, 3), List(1, 2, 3))) // false
+    println(hasSubsequence(List(1, 4), List(1, 2, 3))) // false
+
+    //    println(List(1, 2, 3))
+    //    println(reverse(List(1, 2, 3)))
+    //    println(append2(List(1, 2, 3), List(7, 8, 9)))
+    //    println(concat(List(List(1, 2, 3), List(4, 5, 6), List(7, 8, 9))))
+    //    println(add1(List(1, 2, 3)))
+    //    println(doubleToString(List(1, 2, 3)))
+    //    println(map(List(1, 2, 3))(_ * 3))
+    //    println(flatMap(List(1, 2, 3))(i => List(i, i)))
+    //    println(addInts(List(1, 2, 3), List(7, 8, 9)))
+    //    println(zipWith(List(1, 2, 3), List(7, 8, 9))((_, _)))
+
   }
 }
