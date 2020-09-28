@@ -1,5 +1,5 @@
 x 2 getting started
-  3 Functional data structures
+x 3 Functional data structures
   4 Handling Errors
   5 Strictness and Laziness
 x 6 Purely Functional State
