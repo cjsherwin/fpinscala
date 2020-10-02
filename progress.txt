@@ -1,7 +1,7 @@
 x 2 getting started
 x 3 Functional data structures
-  4 Handling Errors
-  5 Strictness and Laziness
+x 4 Handling Errors
+o 5 Strictness and Laziness
 x 6 Purely Functional State
   7 Purely Functional Parallelism
   8 Property-based Testing
