@@ -57,8 +57,8 @@ trait Stream[+A] {
       case _ => empty
     }
 
-  def takeWhileFR(p: A => Boolean): Stream[A] =
-    this.foldRight()
+//  def takeWhileFR(p: A => Boolean): Stream[A] =
+//    this.foldRight()
 
   def forAll(p: A => Boolean): Boolean =
     this.foldRight(true)((a, b) => p(a) && b)

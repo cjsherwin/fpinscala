@@ -12,7 +12,7 @@ object Par {
 
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
 
-  def asyncF[A,B](f: A => B): A => Par[B] = a => lazyUnit(f(a))
+  def asyncF[A, B](f: A => B): A => Par[B] = a => lazyUnit(f(a))
 
   private case class UnitFuture[A](get: A) extends Future[A] {
     def isDone = true
@@ -49,10 +49,11 @@ object Par {
 
   def sortPar(parList: Par[List[Int]]): Par[List[Int]] = map(parList)(_.sorted)
 
-  def sequence[A](ps: List[Par[A]]): Par[List[A]] =
+  def sequence[A](ps: List[Par[A]]): Par[List[A]] = fork {
     ps.foldRight(
-      lazyUnit(List[A]()))(
+      unit(List[A]()))(
       (pa, pla) => map2(pa, pla)((a, la) => a :: la))
+  }
 
   def sequence_match[A](ps: List[Par[A]]): Par[List[A]] =
     ps match {
@@ -60,13 +61,20 @@ object Par {
       case h :: t => map2(h, fork(sequence_match(t)))(_ :: _)
     }
 
-  def sequenceBalanced[A](ps: IndexedSeq[Par[A]]): Par[IndexedSeq[A]] =
-    if (ps.isEmpty) unit(ps)
+  def sequenceBalanced[A](ps: IndexedSeq[Par[A]]): Par[IndexedSeq[A]] = fork {
+    if (ps.isEmpty) lazyUnit(ps)
     else if (ps.length == 1) lazyUnit(ps)
     else {
-      val seqs = ps.splitAt(ps.length/2)
-      
+      val (l, r) = ps.splitAt(ps.length / 2)
+      map2(sequenceBalanced(l), sequenceBalanced(r))(_ ++ _)
     }
+  }
+
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = fork {
+    as.foldRight[Par[List[A]]](unit(List[A]()))(
+      (a, l) => lazyUnit(if (f(a)) map2(unit(List(a)), l)(_ ++ _) else l)
+    )
+  }
 
   def equal[A](e: ExecutorService)(p: Par[A], p2: Par[A]): Boolean =
     p(e).get == p2(e).get
@@ -87,9 +95,9 @@ object Par {
 
   }
 
-  private case class Map2Fut[A,B,C](a: Future[A],
-                                    b: Future[B],
-                                    f: (A, B) => C) extends Future[C]{
+  private case class Map2Fut[A, B, C](a: Future[A],
+                                      b: Future[B],
+                                      f: (A, B) => C) extends Future[C] {
     @volatile
     var cache: Option[C] = None
 
@@ -121,12 +129,22 @@ object Par {
     }
   }
 
-  def map2[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] = // `map2` doesn't evaluate the call to `f` in a separate logical thread, in accord with our design choice of having `fork` be the sole function in the API for controlling parallelism. We can always do `fork(map2(a,b)(f))` if we want the evaluation of `f` to occur in a separate thread.
-    (es: ExecutorService) => {
-      val af = a(es)
-      val bf = b(es)
-      Map2Fut(af, bf, f)
-    }
+//  def map2[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] = // `map2` doesn't evaluate the call to `f` in a separate logical thread, in accord with our design choice of having `fork` be the sole function in the API for controlling parallelism. We can always do `fork(map2(a,b)(f))` if we want the evaluation of `f` to occur in a separate thread.
+//    (es: ExecutorService) => {
+//      val af = a(es)
+//      val bf = b(es)
+//      Map2Fut(af, bf, f)
+//    }
+
+  def main(args: Array[String]): Unit = {
+    val l = List(1, 2, 3)
+    println(
+      run(Executors.newFixedThreadPool(5))(parFilter(l)(a => {
+        println(Thread.currentThread().getId)
+        a <= 2
+      }))
+    )
+  }
 }
 
 object Examples {
