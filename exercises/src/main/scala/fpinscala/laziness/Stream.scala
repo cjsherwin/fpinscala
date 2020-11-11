@@ -57,16 +57,22 @@ trait Stream[+A] {
       case _ => empty
     }
 
-//  def takeWhileFR(p: A => Boolean): Stream[A] =
-//    this.foldRight()
+  def takeWhileFR(p: A => Boolean): Stream[A] =
+    this.foldRight(empty[A])((a, s) => if (p(a)) cons(a, s) else s)
 
   def forAll(p: A => Boolean): Boolean =
     this.foldRight(true)((a, b) => p(a) && b)
 
-  def headOption: Option[A] = ???
+  def headOption: Option[A] =
+    this.foldRight(None: Option[A])((a, _) => Some(a))
 
   // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
   // writing your own function signatures.
+  def map[B](f: A => B): Stream[B] =
+    this.foldRight(empty[B])((a, s) => cons(f(a), s))
+
+  def filter(p: A => Boolean): Stream[A] =
+    this.foldRight(empty[A])((a, s) => if (p(a)) cons(a, s) else s)
 
   def startsWith[B](s: Stream[B]): Boolean = ???
 }
@@ -80,12 +86,18 @@ case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A] {
 
 object Stream {
   def main(args: Array[String]): Unit = {
-    println(cons(1, cons(2, cons(3, empty))).toString)
-    println(cons(1, cons(2, cons(3, empty))).toList)
-    println(cons(1, cons(2, cons(3, empty))).take(2))
-    println(cons(1, cons(2, cons(3, empty))).drop(1))
-    println(cons(1, cons(2, cons(3, empty))).takeWhile(_ == 2))
-    println(cons(1, cons(2, cons(3, empty))).forAll(_ < 2))
+    val c = cons(1, cons(2, cons(3, cons(4, empty))))
+    println(c.toString)
+    println(c.toList)
+    println(c.take(2))
+    println(c.drop(1))
+    println(c.takeWhile(_ == 2))
+    println(c.forAll{i => println(s"i: $i"); i < 2})
+//    println(List(1,2,3,4).foldRight(0){(n, s) => println(s"s: $s, n: $n"); n + s})
+    println(c.foldRight(0){(n, s) =>
+      println(s"s: $s, n: $n")
+      n + s
+    })
   }
 
   def cons[A](hd: => A, tl: => Stream[A]): Stream[A] = {

@@ -172,7 +172,7 @@ object Par {
   def choiceFM[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
     flatMap(cond)(b => if (b) t else f)
 
-  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+  def choiceN_FM[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
     flatMap(n)(ix => choices(ix))
 
   def joinFM[A](ppa: Par[Par[A]]): Par[A] =
