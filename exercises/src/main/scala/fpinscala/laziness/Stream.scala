@@ -39,11 +39,11 @@ trait Stream[+A] {
   }
 
   def take(n: Int): Stream[A] =
-      this match {
-        case Cons(h, t) if n > 1 => cons(h(), t().take(n - 1))
-        case Cons(h, _) if n == 1 => cons(h(), empty)
-        case _ => empty
-      }
+    this match {
+      case Cons(h, t) if n > 1 => cons(h(), t().take(n - 1))
+      case Cons(h, _) if n == 1 => cons(h(), empty)
+      case _ => empty
+    }
 
   def drop(n: Int): Stream[A] =
     this match {
@@ -58,21 +58,27 @@ trait Stream[+A] {
     }
 
   def takeWhileFR(p: A => Boolean): Stream[A] =
-    this.foldRight(empty[A])((a, s) => if (p(a)) cons(a, s) else s)
+    this.foldRight(empty[A])((h, t) => if (p(h)) cons(h, t) else t)
 
   def forAll(p: A => Boolean): Boolean =
-    this.foldRight(true)((a, b) => p(a) && b)
+    this.foldRight(true)((h, t) => p(h) && t)
 
   def headOption: Option[A] =
-    this.foldRight(None: Option[A])((a, _) => Some(a))
+    this.foldRight(None: Option[A])((h, _) => Some(h))
 
   // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
   // writing your own function signatures.
   def map[B](f: A => B): Stream[B] =
-    this.foldRight(empty[B])((a, s) => cons(f(a), s))
+    this.foldRight(empty[B])((h, t) => cons(f(h), t))
 
   def filter(p: A => Boolean): Stream[A] =
-    this.foldRight(empty[A])((a, s) => if (p(a)) cons(a, s) else s)
+    this.foldRight(empty[A])((h, t) => if (p(h)) cons(h, t) else t)
+
+  def append[B >: A](sa: => Stream[B]): Stream[B] =
+    this.foldRight(sa)((h, t) => cons(h, t))
+
+  def flatMap[B](f: A => Stream[B]): Stream[B] =
+    foldRight(empty[B])((h, t) => f(h).append(t))
 
   def startsWith[B](s: Stream[B]): Boolean = ???
 }
@@ -91,13 +97,16 @@ object Stream {
     println(c.toList)
     println(c.take(2))
     println(c.drop(1))
-    println(c.takeWhile(_ == 2))
-    println(c.forAll{i => println(s"i: $i"); i < 2})
-//    println(List(1,2,3,4).foldRight(0){(n, s) => println(s"s: $s, n: $n"); n + s})
-    println(c.foldRight(0){(n, s) =>
-      println(s"s: $s, n: $n")
-      n + s
-    })
+    println(c.takeWhile(_ <= 2))
+    println(c.takeWhileFR(_ <= 2))
+    println(c.forAll { i => println(s"i: $i"); i < 2 })
+    //    println(List(1,2,3,4).foldRight(0){(n, s) => println(s"s: $s, n: $n"); n + s})
+    //    println(c.foldRight(0){(n, s) =>
+    //      println(s"s: $s, n: $n")
+    //      n + s
+    //    })
+    println(from(5).takeWhile(_ < 10))
+    println(fibs.take(10))
   }
 
   def cons[A](hd: => A, tl: => Stream[A]): Stream[A] = {
@@ -114,7 +123,17 @@ object Stream {
 
   val ones: Stream[Int] = Stream.cons(1, ones)
 
-  def from(n: Int): Stream[Int] = ???
+  def constant[A](a: A): Stream[A] = Stream.cons(a, constant(a))
+
+  def from(n: Int): Stream[Int] = Stream.cons(n, from(n + 1))
+
+  def fibs: Stream[Int] = {
+    def go(a: Int, b: Int, s: Stream[Int]): Stream[Int] = {
+      val next = a + b
+      go(b, next, s.append(cons(next, empty)))
+    }
+    go(0, 1, Stream(0, 1))
+  }
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
 }
