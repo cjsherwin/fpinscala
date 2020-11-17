@@ -148,6 +148,9 @@ object Stream {
     }
   }
 
-  def map[A,B](a: Stream[A])(f: A => B): Stream[B] =
-    unfold()(b => Some(b, b))
+  def map[A,B](as: Stream[A])(f: A => B): Stream[B] =
+    unfold(as){
+      case Cons(h, t) => Some(f(h()), t())
+      case _ => None
+    }
 }
