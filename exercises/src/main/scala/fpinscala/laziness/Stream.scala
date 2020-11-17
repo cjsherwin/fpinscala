@@ -105,8 +105,15 @@ object Stream {
     //      println(s"s: $s, n: $n")
     //      n + s
     //    })
+    println(s"ones: ${ones.take(10)}")
+    println(s"constant: ${constant("x").take(10)}")
     println(from(5).takeWhile(_ < 10))
     println(fibs.take(10))
+    println(s"unfold fib: ${unfold((0,1)){ case (a, b) => Some(a, (b, a + b))}.take(10)}")
+    println(s"unfold from: ${unfold(5)(n => if (n < 10) Some(n, n + 1) else None)}")
+    println(s"unfold constant: ${unfold("x")(n => Some(n, n)).take(10)}")
+    println(s"unfold ones: ${unfold(1)(n => Some(n, n)).take(10)}")
+    println(s"map: ${map()}")
   }
 
   def cons[A](hd: => A, tl: => Stream[A]): Stream[A] = {
@@ -128,12 +135,19 @@ object Stream {
   def from(n: Int): Stream[Int] = Stream.cons(n, from(n + 1))
 
   def fibs: Stream[Int] = {
-    def go(a: Int, b: Int, s: Stream[Int]): Stream[Int] = {
-      val next = a + b
-      go(b, next, s.append(cons(next, empty)))
+    def go(a: Int, b: Int): Stream[Int] = {
+      cons(a, go(b, a + b))
     }
-    go(0, 1, Stream(0, 1))
+    go(0, 1)
   }
 
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+    f(z) match {
+      case Some((a, s)) => cons(a, unfold(s)(f))
+      case _ => empty
+    }
+  }
+
+  def map[A,B](a: Stream[A])(f: A => B): Stream[B] =
+    unfold()(b => Some(b, b))
 }
