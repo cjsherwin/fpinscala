@@ -80,8 +80,71 @@ trait Stream[+A] {
   def flatMap[B](f: A => Stream[B]): Stream[B] =
     foldRight(empty[B])((h, t) => f(h).append(t))
 
-  def startsWith[B](s: Stream[B]): Boolean = ???
+  def mapUf[B](f: A => B): Stream[B] =
+    unfold(this) {
+      case Cons(h, t) => Some(f(h()), t())
+      case _ => None
+    }
+
+  def takeUf(n: Int): Stream[A] =
+    unfold((this, 0)) {
+      case (Cons(h, t), i) if i < n => Some(h(), (t(), i + 1))
+      case _ => None
+    }
+
+  def takeWhileUf(p: A => Boolean): Stream[A] =
+    unfold(this) {
+      case Cons(h, t) => if (p(h())) Some(h(), t()) else None
+      case _ => None
+    }
+
+  def zipWith[B, C](s2: Stream[B])(f: (A, B) => C): Stream[C] =
+    unfold((this, s2)) {
+      case (Cons(h1, t1), Cons(h2, t2)) => Some(f(h1(), h2()), (t1(), t2()))
+      case _ => None
+    }
+
+  def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] =
+    unfold((this, s2)) {
+      case (Empty, Empty) => None
+      case (Cons(h1, t1), Empty) => Some((Some(h1()), None), (t1(), Empty))
+      case (Empty, Cons(h2, t2)) => Some((None, Some(h2())), (Empty, t2()))
+      case (Cons(h1, t1), Cons(h2, t2)) => Some((Some(h1()), Some(h2())), (t1(), t2()))
+    }
+
+  def startsWith[B](s: Stream[B]): Boolean = {
+    this.zipAll(s)
+      .takeWhile(_._2.isDefined)
+      .forAll {
+        case (a, b) => a == b
+      }
+  }
+
+  //  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+  //    f(z) match {
+  //      case Some((a, s)) => cons(a, unfold(s)(f))
+  //      case _ => empty
+  //    }
+  //  }
+
+  def tails: Stream[Stream[A]] = {
+    unfold(this) {
+      case Cons(h, t) => Some((cons(h(), t()), t()))
+      case _ => None
+    }
+  }
+
+  def hasSubsequence[B](s: Stream[B]): Boolean =
+    tails.exists(_.startsWith(s))
+
+  def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] = {
+    this match {
+      case Cons(h, t) => cons(h(), f(h(), t().scanRight(z)(f)))
+      case _ => empty
+    }
+  }
 }
+
 
 case object Empty extends Stream[Nothing]
 
@@ -93,6 +156,7 @@ case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A] {
 object Stream {
   def main(args: Array[String]): Unit = {
     val c = cons(1, cons(2, cons(3, cons(4, empty))))
+    val d = cons(1, cons(2, cons(3, cons(4, empty))))
     println(c.toString)
     println(c.toList)
     println(c.take(2))
@@ -109,11 +173,23 @@ object Stream {
     println(s"constant: ${constant("x").take(10)}")
     println(from(5).takeWhile(_ < 10))
     println(fibs.take(10))
-    println(s"unfold fib: ${unfold((0,1)){ case (a, b) => Some(a, (b, a + b))}.take(10)}")
+    println(s"unfold fib: ${unfold((0, 1)) { case (a, b) => Some(a, (b, a + b)) }.take(10)}")
     println(s"unfold from: ${unfold(5)(n => if (n < 10) Some(n, n + 1) else None)}")
     println(s"unfold constant: ${unfold("x")(n => Some(n, n)).take(10)}")
     println(s"unfold ones: ${unfold(1)(n => Some(n, n)).take(10)}")
-    println(s"map: ${map()}")
+    println(s"mapUf: ${c.map(_ * 2)}")
+    println(s"takeUf: ${c.takeUf(2)}")
+    println(s"takeWhileUf: ${c.takeWhileUf(_ <= 3)}")
+    println(s"zipwith: ${c.zipWith(c.map(_ * 2))((_, _))}")
+    println(s"zipall: ${c.zipAll(c.take(3))}")
+    println(s"zipall: ${c.zipWith(c.take(3))((_, _))}")
+
+    println(s"startsWith: ${c.startsWith(d)}")
+    println(s"startsWith: ${c.startsWith(d.take(2))}")
+    println(s"startsWith: ${c.startsWith(d.drop(2))}")
+    println(s"tails: ${c.tails}")
+    println(s"hasSub: ${c.hasSubsequence(cons(2, cons(3, empty)))}")
+    println(s"hasSub: ${c.hasSubsequence(cons(2, cons(4, empty)))}")
   }
 
   def cons[A](hd: => A, tl: => Stream[A]): Stream[A] = {
@@ -138,6 +214,7 @@ object Stream {
     def go(a: Int, b: Int): Stream[Int] = {
       cons(a, go(b, a + b))
     }
+
     go(0, 1)
   }
 
@@ -147,10 +224,4 @@ object Stream {
       case _ => empty
     }
   }
-
-  def map[A,B](as: Stream[A])(f: A => B): Stream[B] =
-    unfold(as){
-      case Cons(h, t) => Some(f(h()), t())
-      case _ => None
-    }
 }
