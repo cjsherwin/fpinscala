@@ -138,13 +138,15 @@ trait Stream[+A] {
     tails.exists(_.startsWith(s))
 
   def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] = {
-    this match {
-      case Cons(h, t) => cons(h(), f(h(), t().scanRight(z)(f)))
-      case _ => empty
-    }
+    val out: (Stream[B], B) = foldRight((cons(z, empty), z))(
+      (a, b) => {
+        lazy val b1 = b
+        val newB: B = f(a, b1._2)
+        (cons(newB, b1._1), newB)
+      })
+    out._1
   }
 }
-
 
 case object Empty extends Stream[Nothing]
 
@@ -190,6 +192,7 @@ object Stream {
     println(s"tails: ${c.tails}")
     println(s"hasSub: ${c.hasSubsequence(cons(2, cons(3, empty)))}")
     println(s"hasSub: ${c.hasSubsequence(cons(2, cons(4, empty)))}")
+    println(s"scanRight: ${c.take(3).scanRight(0)(_ + _)}")
   }
 
   def cons[A](hd: => A, tl: => Stream[A]): Stream[A] = {
