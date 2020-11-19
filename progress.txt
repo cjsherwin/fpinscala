@@ -1,10 +1,10 @@
 x 2 getting started
 x 3 Functional data structures
 x 4 Handling Errors
-o 5 Strictness and Laziness
+x 5 Strictness and Laziness
 x 6 Purely Functional State
 x 7 Purely Functional Parallelism
-  8 Property-based Testing
+o 8 Property-based Testing
   9 Parser Combinators
  10 Monoids
  11 Monads
