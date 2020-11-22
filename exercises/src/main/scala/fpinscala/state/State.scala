@@ -55,6 +55,11 @@ object RNG {
     ((d, i), r2)
   }
 
+  def boolean(rng: RNG): (Boolean, RNG) = {
+    val (i, r) = nonNegativeInt(rng)
+    (i % 2 == 0, r)
+  }
+
   def double3(rng: RNG): ((Double, Double, Double), RNG) = {
     val (d, r) = double(rng)
     val (d2, r2) = double(r)
