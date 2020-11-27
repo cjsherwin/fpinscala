@@ -1,33 +1,74 @@
 package fpinscala.testing
 
-import fpinscala.laziness.Stream
 import fpinscala.state._
-import fpinscala.parallelism._
-import fpinscala.parallelism.Par.Par
-import Gen._
-import Prop._
-import java.util.concurrent.{ExecutorService, Executors}
-
-import fpinscala.state.RNG.Simple
+import fpinscala.testing.Prop._
+import fpinscala.{laziness => FP}
 
 /*
 The library developed in this chapter goes through several iterations. This file is just the
 shell, which you can fill in and modify while working through the chapter.
 */
 
-trait Prop {
-  def check: Either[(FailedCase, SuccessCount), SuccessCount]
+//trait Prop {
+//  def check: Either[(FailedCase, SuccessCount), SuccessCount]
 
   //  def &&(p: Prop): Prop = new Prop {
   //    def check: Boolean = Prop.this.check && p.check
   //  }
+//}
+
+case class Prop(run: (TestCases, RNG) => Result) {
+
+  def &&(p: Prop): Prop = Prop {
+    (n, rng) => this.run(n, rng) match {
+      case Passed => p.run(n, rng)
+      case f => f
+    }
+  }
+
+  def ||(p: Prop): Prop = Prop {
+    (n, rng) => this.run(n, rng) match {
+      case Passed => Passed
+      case _ => p.run(n, rng)
+    }
+  }
+
+
 }
 
 object Prop {
   type FailedCase = String
   type SuccessCount = Int
+  type TestCases = Int
 
-  def forAll[A](gen: Gen[A])(f: A => Boolean): Prop = ???
+  sealed trait Result {
+    def isFalsified: Boolean
+  }
+  case object Passed extends Result {
+    override def isFalsified: Boolean = false
+  }
+  case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
+    override def isFalsified: Boolean = true
+  }
+
+  def forAll[A](gen: Gen[A], label: String)(f: A => Boolean): Prop = Prop {
+    (n, rng) => randomStream(gen)(rng).zip(FP.Stream.from(0)).take(n).map {
+      case (a, i) => try {
+        val res = if (f(a)) Passed else Falsified(failMsg(label, a), i)
+        res
+      } catch { case e: Exception => Falsified(exMsg(label, a, e), i)}
+    }.find(_.isFalsified).getOrElse(Passed)
+  }
+
+  def randomStream[A](g: Gen[A])(rng: RNG): FP.Stream[A] =
+  FP.Stream.unfold(rng)(rng => Some(g.sample.run(rng)))
+
+  private def failMsg[A](label: String, a: A) = {
+    s"test:$label case:$a failed"
+  }
+
+  private def exMsg[A](label: String, a: A, e: Exception): String =
+    s"test:$label case:$a generated an exception: ${e.getMessage}\nstack trace: \n${e.getStackTrace.mkString(("\n"))}"
 }
 
 case class Gen[A](sample: State[RNG, A]) {
@@ -36,6 +77,13 @@ case class Gen[A](sample: State[RNG, A]) {
   def listOfN(size: Int): Gen[List[A]] = Gen.listOfN(size, this)
 
   def listOfN(size: Gen[Int]): Gen[List[A]] = size.flatMap(listOfN)
+
+  def sized: SGen[A] = SGen(_ => this)
+}
+
+case class SGen[A](forSize: Int => Gen[A]) {
+  def apply(n: Int): 
+//  def flatMap[B](f: A => SGen[B]): SGen[B] = i => forSize(i).flatMap(f)
 }
 
 object Gen {
@@ -71,25 +119,18 @@ object Gen {
   def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] =
     boolean.flatMap(b => if (b) g1 else g2)
 
-  def weighted[A](g1: (Gen[A],Double), g2: (Gen[A],Double)): Gen[A] =
+  def weighted[A](g1: (Gen[A], Double), g2: (Gen[A], Double)): Gen[A] =
     Gen.choose(1, 100).flatMap(
       res => {
-        val decider = res / 100d
-        val weight1 = g1._2 / (g1._2 + g2._2 )
-        val weight2 = g2._2 / (g1._2 + g2._2 )
-        if (decider)
+        val (gen1, wgt1) = g1
+        val (gen2, wgt2) = g2
+        val cutOff = 100 * wgt1 / (wgt1 + wgt2)
+        //println(s"wgt1:$wgt1, wgt2:$wgt2, cutOff:$cutOff, res:$res, pick:${if (res < cutOff) "g1" else "g2"}")
+        if (res < cutOff) gen1 else gen2
       }
     )
-
-//trait Gen[A] {
-//  def map[A, B](f: A => B): Gen[B] = ???
-//
-//  def flatMap[A, B](f: A => Gen[B]): Gen[B] = ???
-//}
-
-trait SGen[+A] {
-
 }
+
 
 object Testing {
   def main(args: Array[String]): Unit = {
@@ -110,5 +151,19 @@ object Testing {
     println(s"string(10): ${testRun(Gen.string(30))}")
     // 8.7
     println(s"union: ${testRun(Gen.union(Gen.choose(0, 5), Gen.choose(10, 15)).listOfN(5))}")
+    // 8.8
+    println(s"weighted: ${
+      testRun(
+        Gen.weighted(
+          (Gen.choose(0, 5), 20),
+          (Gen.choose(10, 15), 5)
+        ).listOfN(10))
+    }")
+
+    // 8.9
+    val pF = Prop.forAll(Gen.choose(1, 5), "pF")(_ < 4)
+    val pT = Prop.forAll(Gen.choose(1, 5), "pT")(_ < 5)
+    println(s"&&: ${(pF && pT).run(10, RNG.Simple(100))}")
+    println(s"||: ${(pF || pT).run(10, RNG.Simple(100))}")
   }
 }
