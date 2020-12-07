@@ -139,6 +139,12 @@ object SGen {
   def listOf[A](g: Gen[A]): SGen[List[A]] = SGen {
     n => g.listOfN(n)
   }
+
+  def listOf1[A](g: Gen[A]): SGen[List[A]] = SGen {
+    n =>
+      val adj = if (n == 0) 1 else n
+      g.listOfN(adj)
+  }
 }
 
 object Gen {
@@ -221,12 +227,24 @@ object Testing {
     println(s"&&: ${(pF && pT).run(10, 10, RNG.Simple(100))}")
     println(s"||: ${(pF || pT).run(10, 10, RNG.Simple(100))}")
 
-    // 8.12
+    // 8.12/13
     val gen = Gen.choose(-10, 10)
-    val maxProp = Prop.forAll(SGen.listOf(gen)) { ns =>
+    val maxProp = Prop.forAll(SGen.listOf1(gen)) { ns =>
       val max = ns.max
       !ns.exists(_ > max)
     }
-    print(s"8.12 maxProp: ${Prop.run(maxProp, 100, 100, RNG.Simple(System.currentTimeMillis))}")
+    println(s"8.12 maxProp: ${Prop.run(maxProp, 100, 100, RNG.Simple(System.currentTimeMillis))}")
+
+    // 8.14
+    val sortedProp = Prop.forAll(SGen.listOf(gen)) { ns =>
+      val sorted = ns.sorted
+      (sorted.length == ns.length) &&
+        (if (ns.length > 1)
+          sorted.sliding(2).forall(b => b.head <= b.last)
+        else true) &&
+        sorted.forall(ns.contains) &&
+        ns.forall(sorted.contains)
+    }
+    println(s"8.14 sortedProp: ${Prop.run(sortedProp, 100, 100, RNG.Simple(System.currentTimeMillis))}")
   }
 }
